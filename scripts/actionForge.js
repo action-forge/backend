@@ -13,12 +13,12 @@ async function main() {
     // const actionForge = await actionForgeContract.deploy()
     // await actionForge.waitForDeployment()
     // actionForgeAddress = await actionForge.getAddress()
-    // console.log("actionForge address = ", actionForgeAddress)
-    // console.log((actionForgeAddress))
+    // // console.log("actionForge address = ", actionForgeAddress)
+    // console.log({actionForgeAddress})
 
     const ethAmount = BigInt(100000000000000)
     // actionForge
-    const actionForge = await ethers.getContractAt("ActionForge", "0x070b65b46Ae3E1Ed71fcCE77223689E8e22384F0")
+    const actionForge = await ethers.getContractAt("ActionForge", "0xcb78b522fe8dE756e2bE39A448c589a372FBE7B7")
     actionForgeAddress = await actionForge.getAddress()
 
     // tx = await user1.sendTransaction({to: actionForgeAddress, value: ethAmount})
@@ -43,18 +43,22 @@ async function main() {
     // tx = await actionForge.connect(user1).borrowGHO(user1.address, ethAmount)
     // console.log("tx = ", tx.hash)
 
-    const message = ethers.id("some other message");
-    const messageBytes = ethers.getBytes(message);
+    // const message = ethers.id("some other message");
+    // const messageBytes = ethers.getBytes(message);
 
-    // Sign the message
-    const signature = await admin.signMessage(messageBytes);
+    // // Sign the message
+    // const signature = await admin.signMessage(messageBytes);
 
-    // Call the recoverSigner function from your contract
-    const recoveredAddress = await actionForge.recoverSigner(message, signature);
+    // // Call the recoverSigner function from your contract
+    // const recoveredAddress = await actionForge.recoverSigner(message, signature);
 
-    console.log(`Original Address: ${admin.address}`);
-    console.log(`Recovered Address: ${recoveredAddress}`);
+    // console.log(`Original Address: ${admin.address}`);
+    // console.log(`Recovered Address: ${recoveredAddress}`);
 
+    data = ethers.AbiCoder.defaultAbiCoder().encode(["address", "uint256"], ["0x7E04c9d2a324d94292CF3C96ebf597a57c528d6d", 1234])
+    dataBytes = ethers.getBytes(data)
+    resp = await actionForge.decodeData(dataBytes)
+    console.log("resp = ", resp)
 }
 
 main()
