@@ -1,6 +1,6 @@
 specVersion: 0.0.5
 schema:
-  file: ./schema.graphql
+  file: schema.graphql
 dataSources:
   - kind: ethereum
     name: ActionForge
@@ -23,11 +23,12 @@ dataSources:
         - Response
       abis:
         - name: ActionForge
-          file: ./abis/ActionForge.json
+          file: ActionForge/abis/ActionForge.json
       eventHandlers:
         - event: ActionExecuted(indexed bytes32,uint256,uint8)
           handler: handleActionExecuted
-        - event: ActionForgeRegistered(indexed bytes32,indexed bytes32,uint256,address,(bytes32,bytes32,uint256,(uint8,bytes)[],bool,uint256))
+        - event: ActionForgeRegistered(indexed bytes32,indexed
+            bytes32,uint256,address,(bytes32,bytes32,uint256,(uint8,bytes)[],bool,uint256))
           handler: handleActionForgeRegistered
         - event: ETHReceived(address,uint256)
           handler: handleETHReceived
@@ -39,4 +40,4 @@ dataSources:
           handler: handleRequestSent
         - event: Response(indexed bytes32,bytes,bytes)
           handler: handleResponse
-      file: ./src/action-forge.ts
+      file: ActionForge/ActionForge.wasm

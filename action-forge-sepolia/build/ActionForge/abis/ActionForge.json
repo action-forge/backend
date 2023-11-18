@@ -1,0 +1,991 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "router",
+        "type": "address"
+      },
+      {
+        "internalType": "uint64",
+        "name": "_subscriptionId",
+        "type": "uint64"
+      },
+      {
+        "internalType": "string",
+        "name": "_source",
+        "type": "string"
+      },
+      {
+        "internalType": "uint32",
+        "name": "_gasLimit",
+        "type": "uint32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_donID",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "EmptyArgs",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EmptySource",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NoInlineSecrets",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "automationRegistry",
+        "type": "address"
+      }
+    ],
+    "name": "NotAllowedCaller",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OnlyRouterCanFulfill",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableInvalidOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "requestId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "UnexpectedRequestID",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "proposalId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "option",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum ActionForge.ActionType",
+        "name": "actionType",
+        "type": "uint8"
+      }
+    ],
+    "name": "ActionExecuted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "proposalId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "actionForgeId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "upkeepId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "createdBy",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "snapshotId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "actionForgeId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "enum ActionForge.ActionType",
+                "name": "actionType",
+                "type": "uint8"
+              },
+              {
+                "internalType": "bytes",
+                "name": "txData",
+                "type": "bytes"
+              }
+            ],
+            "internalType": "struct ActionForge.Action[]",
+            "name": "actions",
+            "type": "tuple[]"
+          },
+          {
+            "internalType": "bool",
+            "name": "executed",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "winnerOption",
+            "type": "uint256"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct ActionForge.Proposal",
+        "name": "proposal",
+        "type": "tuple"
+      }
+    ],
+    "name": "ActionForgeRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "ETHReceived",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "id",
+        "type": "bytes32"
+      }
+    ],
+    "name": "RequestFulfilled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "id",
+        "type": "bytes32"
+      }
+    ],
+    "name": "RequestSent",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "requestId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "response",
+        "type": "bytes"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "err",
+        "type": "bytes"
+      }
+    ],
+    "name": "Response",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "aaveEthAsset",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "aaveOracle",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "aavePoolProxy",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "aaveWrappedTokenGatewayV3",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "dataBytes",
+        "type": "bytes"
+      }
+    ],
+    "name": "borrowGHO",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "dataBytes",
+        "type": "bytes"
+      }
+    ],
+    "name": "buySDAI",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "data",
+        "type": "bytes32"
+      }
+    ],
+    "name": "bytes32ToBytes",
+    "outputs": [
+      {
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_bytes32",
+        "type": "bytes32"
+      }
+    ],
+    "name": "bytes32ToString",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "chainLinkAddress",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "checkData",
+        "type": "bytes"
+      }
+    ],
+    "name": "checkUpkeep",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "upkeepNeeded",
+        "type": "bool"
+      },
+      {
+        "internalType": "bytes",
+        "name": "performData",
+        "type": "bytes"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "checkData",
+        "type": "bytes"
+      }
+    ],
+    "name": "convertBytesToUint",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "convertUintToBytes",
+    "outputs": [
+      {
+        "internalType": "bytes",
+        "name": "checkData",
+        "type": "bytes"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "daiContract",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "donID",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "ethDeposited",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "gasLimit",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ghoToken",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "requestId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "response",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "err",
+        "type": "bytes"
+      }
+    ],
+    "name": "handleOracleFulfillment",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nonce",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "performData",
+        "type": "bytes"
+      }
+    ],
+    "name": "performUpkeep",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "proposalMap",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "proposals",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "snapshotId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "actionForgeId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "endTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "executed",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "winnerOption",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "snapshotId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "actionForgeId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "enum ActionForge.ActionType",
+                "name": "actionType",
+                "type": "uint8"
+              },
+              {
+                "internalType": "bytes",
+                "name": "txData",
+                "type": "bytes"
+              }
+            ],
+            "internalType": "struct ActionForge.Action[]",
+            "name": "actions",
+            "type": "tuple[]"
+          },
+          {
+            "internalType": "bool",
+            "name": "executed",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "winnerOption",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ActionForge.Proposal",
+        "name": "proposalData",
+        "type": "tuple"
+      }
+    ],
+    "name": "registerProposal",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "requestMap",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "scheduler",
+    "outputs": [
+      {
+        "internalType": "contract Scheduler",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "sdaiContract",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_aaveWrappedTokenGatewayV3",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_aavePoolProxy",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_ghoToken",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_aaveOracle",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_aaveEthAsset",
+        "type": "address"
+      }
+    ],
+    "name": "setAaveParams",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_scheduler",
+        "type": "address"
+      }
+    ],
+    "name": "setScheduler",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_sdaiContract",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_daiContract",
+        "type": "address"
+      }
+    ],
+    "name": "setSparkParams",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_uniswapRouter",
+        "type": "address"
+      }
+    ],
+    "name": "setUniswapParams",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "source",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "subscriptionId",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "ethAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "tokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenAmountOutMin",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deadline",
+        "type": "uint256"
+      }
+    ],
+    "name": "swapEthForToken",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "dataBytes",
+        "type": "bytes"
+      }
+    ],
+    "name": "transferERC20",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "uniswapRouter",
+    "outputs": [
+      {
+        "internalType": "contract IUniswapV2Router02",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "upkeepContract",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
+  }
+]

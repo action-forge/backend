@@ -1,3 +1,4 @@
+import { BigInt, Bytes } from "@graphprotocol/graph-ts"
 import {
   ActionExecuted as ActionExecutedEvent,
   ActionForgeRegistered as ActionForgeRegisteredEvent,
@@ -45,7 +46,8 @@ export function handleActionForgeRegistered(
   entity.proposal_snapshotId = event.params.proposal.snapshotId
   entity.proposal_actionForgeId = event.params.proposal.actionForgeId
   entity.proposal_endTime = event.params.proposal.endTime
-  entity.proposal_actions = event.params.proposal.actions
+  entity.proposal_action_types = event.params.proposal.actions.map<BigInt>(a => BigInt.fromI32(a.actionType))
+  entity.proposal_action_txData = event.params.proposal.actions.map<Bytes>(a => a.txData)
   entity.proposal_executed = event.params.proposal.executed
   entity.proposal_winnerOption = event.params.proposal.winnerOption
 
