@@ -10,6 +10,8 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 import "./interfaces/IWrappedTokenGatewayV3.sol";
 import "./interfaces/ISDAI.sol";
+import "./Scheduler.sol";
+import {RegistrationParams} from "./Scheduler.sol";
 
 import "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
 import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
@@ -19,14 +21,12 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
     using FunctionsRequest for FunctionsRequest.Request;
     
     // functions
+    Scheduler public scheduler;
     address public upkeepContract; //
     string public source; // js code to be executed by Functions
     uint64 public subscriptionId;
     uint32 public gasLimit; // 300000
     bytes32 public donID;  // sepolia: 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000;
-    bytes32 public s_lastRequestId;
-    bytes public s_lastResponse;
-    bytes public s_lastError;
 
 
     enum ActionType {
@@ -36,8 +36,8 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
         NO_ACTION // dont do anything
     }
 
-    mapping(address => bytes32[]) public proposalMap; // mapping of each user to their proposal/actions combos
-    mapping(bytes32 => Proposal) public proposals; // mapping of proposalId to proposal
+    mapping(address => bytes32[]) public proposalMap; // mapping of each user to their proposal/actions combos (actionForgeId)
+    mapping(bytes32 => Proposal) public proposals; // mapping of actionForgeId to proposal
 
     // aave
     mapping(address => uint256) public ethDeposited; // mapping of user to their eth deposits
@@ -46,27 +46,24 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
 
     struct Proposal{
         bytes32 snapshotId;
-        uint256 nonce;  // nonce for this contract specifically to prevent replay txs
+        bytes32 actionForgeId;
         uint endTime;  // frontend will populate this from snapshot APIs
         Action[] actions;
         bool executed;
+        uint256 winnerOption;
     }
 
     struct Action {
         ActionType actionType;
-        // bytes32 snapshotId;
-        address from;
-        address to;
-        uint256 amount;
         bytes txData;
-        bytes signature;
     }
 
     uint256 public nonce; // nonce for txs made by this contract
     address public chainLinkAddress;  // wallet which can execute actions on behalf of this contract
 
     mapping(bytes32 => Action) actionMap; // actionId to Action mapping
-    mapping(address => uint256) public nonces;
+    // mapping(address => uint256) public nonces;
+    mapping(bytes32 => bytes32) public requestMap; // requestId to proposalId mapping
     // mapping(address => mapping(uint256 => bytes)) public storedSignatures;
 
     IUniswapV2Router02 public uniswapRouter; // 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
@@ -82,10 +79,10 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
     address public sdaiContract; //  = "0xD8134205b0328F5676aaeFb3B2a0DC15f4029d8C";
     address public daiContract;  // = "0x11fE4B6AE13d2a6055C8D9cF65c55bac32B5d844";
 
-    event ActionExecuted(bytes32 indexed proposalId, uint8 option);
+    event ActionExecuted(bytes32 indexed proposalId, uint256 option, ActionType actionType);
     // event ActionRegistered(bytes32 indexed actionId, address indexed registeredBy, bytes32 snapshotID);
-    event ProposalEnded(bytes32 indexed proposalId, uint8 status, uint256 endTime);
-    event ProposalRegistered(bytes32 indexed proposalId, address createdBy, Proposal proposal);
+    // event ProposalEnded(bytes32 indexed proposalId, uint8 status, uint256 endTime);
+    event ActionForgeRegistered(bytes32 indexed proposalId, bytes32 indexed actionForgeId, uint256 upkeepId, address createdBy, Proposal proposal);
 
     event ETHReceived(address user, uint256 amount);
     // receive() external payable {}
@@ -112,6 +109,10 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
         donID = _donID;
     }
 
+    function setScheduler(address _scheduler) external onlyOwner {
+        scheduler = Scheduler(_scheduler);
+    }
+
     function setAaveParams(address _aaveWrappedTokenGatewayV3, address _aavePoolProxy, address _ghoToken, address _aaveOracle, address _aaveEthAsset) external onlyOwner {
         aaveWrappedTokenGatewayV3 = _aaveWrappedTokenGatewayV3;
         aavePoolProxy = _aavePoolProxy;
@@ -134,66 +135,37 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
         emit ETHReceived(msg.sender, msg.value);
     }
 
-    function registerProposal(Proposal calldata proposal) external {
+    function registerProposal(Proposal calldata proposalData) external {
         // @todo: check action specific validations - check that token is approved before accepting
         // @todo: validate action struct fields
 
-        require(nonces[msg.sender] == proposal.nonce, "Incorrect nonce");
+        bytes32 actionForgeId = keccak256(abi.encodePacked(proposalData.snapshotId, msg.sender));
+        require(proposals[actionForgeId].snapshotId != bytes32(0), "Proposal already registered");
+
+        proposals[actionForgeId] = proposalData;
+        Proposal storage proposal = proposals[actionForgeId];
+        proposal.actionForgeId = actionForgeId;
 
         for (uint i = 0; i < proposal.actions.length; i++) {
             Action memory action = proposal.actions[i];
-            // require(recoverSigner(action, action.signature) == msg.sender, "Invalid signature"); // ensures that the signature is valid and from the sender
-
-            require(IERC20(action.to).allowance(action.from, action.to) > action.amount, "Transfer failed"); // @todo: how to decode erc20 amount?
-
-            nonces[action.from]++;
-
-            bytes32 actionId = keccak256(abi.encodePacked(
-                block.timestamp,
-                msg.sender,
-                action.actionType,
-                // action.snapshotId,
-                action.from,
-                action.to,
-                action.amount
-                // action.nonce
-            ));
-
-            actionMap[actionId] = action;
-            // emit ActionRegistered(actionId, msg.sender, action.snapshotId);
+            proposal.actions[i] = action;
         }
 
-        emit ProposalRegistered(proposal.snapshotId, msg.sender, proposal);
-        // register an upkeep
-    }
-
-    function executeAction(bytes32 proposalId, uint8 option) external payable returns (bytes memory result) {
-        require(proposals[proposalId].actions.length > option, "Invalid option");
-        Action memory action = proposals[proposalId].actions[option];
-        // require(bytes(proposals[proposalId].snapshotId).length != 0, "Invalid actionId");
-
-        // Action memory action = actionMap[actionId];
-        require(msg.sender == chainLinkAddress || msg.sender == action.from, "access denied");
-        bytes memory signature = action.signature;
-        require(signature.length != 0, "No registered transaction");
-
-        ++nonce;
-
-        bool success;
-        (success, result) = action.to.call{value: action.amount}(action.txData);
-
-        if (!success) {
-            assembly {
-                revert(add(result, 32), mload(result))
-            }
-        }
-        emit ActionExecuted(proposalId, option);
-
-
-        // if (actiontype == ERC20_TRANSFER) {
-        // abi.decode(dataBytes, ['address', 'uint256'])
-
-        // }
+        uint256 upkeepId = scheduler.registerAndPredictID(
+            RegistrationParams({
+                name: "ActionForge",
+                encryptedEmail: "",
+                upkeepContract: address(this),
+                gasLimit: 300000,
+                adminAddress: msg.sender,
+                triggerType: 0,
+                checkData: bytes32ToBytes(proposal.actionForgeId),
+                triggerConfig: "",
+                offchainConfig: "",
+                amount: 1e17  // 0.1 LINK
+            })
+        );
+        emit ActionForgeRegistered(proposal.snapshotId, proposal.actionForgeId, upkeepId, msg.sender, proposal);
     }
 
     // ERC20 transfer
@@ -249,46 +221,6 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
         return swappedAmounts[0];
     }
 
-    // function prepareExecution(){}
-
-    function recoverSigner(bytes32 message, bytes memory signature)
-        public
-        pure
-        returns (address)
-    {
-        // Ensure that the message is in the correct format
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", message)
-        );
-
-        // Recover the signer's address
-        (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
-        return ecrecover(ethSignedMessageHash, v, r, s);
-    }
-
-    // Helper function to split a signature into its components
-    function splitSignature(bytes memory sig)
-        internal
-        pure
-        returns (bytes32 r, bytes32 s, uint8 v)
-    {
-        require(sig.length == 65, "Invalid signature length");
-
-        assembly {
-            // first 32 bytes, after the length prefix
-            r := mload(add(sig, 32))
-            // second 32 bytes
-            s := mload(add(sig, 64))
-            // final byte (first byte of the next 32 bytes)
-            v := byte(0, mload(add(sig, 96)))
-        }
-
-        // Adjust for Ethereum's v value
-        if (v < 27) {
-            v += 27;
-        }
-    }
-
     // Chainlink
     // **Automation**
     function checkUpkeep(
@@ -300,34 +232,36 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
         returns (bool upkeepNeeded, bytes memory performData )
     {
         // TODO: grab the proposalId from checkData as well, so we can check for the isExecuted bool for this specific proposalId. Swap that  with `isExecuted` on next line
-        uint targetTimestamp = abi.decode(checkData, (uint));
-        upkeepNeeded = (block.timestamp >= targetTimestamp) && (isExecuted == false);
+        bytes32 actionForgeid = abi.decode(checkData, (bytes32));
+        Proposal memory proposal = proposals[actionForgeid];
+        upkeepNeeded = (block.timestamp >= proposal.endTime) && (proposal.executed == false);
         performData = checkData;
-        
     }
 
     function performUpkeep(bytes calldata performData) external override {
         // TODO: same as above
-        uint targetTimestamp = abi.decode(performData, (uint));
-        if ((block.timestamp >= targetTimestamp) && (isExecuted == false)) {
-            isExecuted = true;
+        bytes32 actionForgeid = abi.decode(performData, (bytes32));
+        Proposal storage proposal = proposals[actionForgeid];
+        if ((block.timestamp >= proposal.endTime) && (proposal.executed == false)) {
+            proposal.executed = true;
             // TODO: grab proposal snapshot id from the struct we fetched earlier
-            sendRequestF("0xa57e0d81ef4fc66ade39318040a6eb960ddb4cc50c73a4589bd29d77579b64c2");
+            sendRequestF(proposal.snapshotId);
         }
     }
 
     // **Functions**
 
     function sendRequestF(
-        string memory proposalId
+        bytes32 snapshotId
     ) internal {
         FunctionsRequest.Request memory req;
         req.initializeRequest(FunctionsRequest.Location.Inline, FunctionsRequest.CodeLanguage.JavaScript, source);
         string[] memory args = new string[](1);
-        args[0] = proposalId;
+        args[0] = bytes32ToString(snapshotId); // bytes32 to string
         req.setArgs(args);
 
-        s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donID);
+        bytes32 s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donID);
+        requestMap[s_lastRequestId] = snapshotId;
     }
 
     /**
@@ -342,20 +276,55 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
         bytes memory response,
         bytes memory err
     ) internal override {
-        if (s_lastRequestId != requestId) {
-            revert UnexpectedRequestID(requestId);
+        bytes32 actionforgeId = requestMap[requestId];
+        Proposal storage proposal = proposals[actionforgeId];
+        (uint256 winnerOption) = abi.decode(response, (uint256));
+
+        Action memory action = proposal.actions[winnerOption];
+
+        if (action.actionType == ActionType.ERC20_TRANSFER) {
+            this.transferERC20(action.txData);
+        } else if (action.actionType == ActionType.BORROW_GHO) {
+            this.borrowGHO(action.txData);
+        } else if (action.actionType == ActionType.BUY_SDAI) {
+            this.buySDAI(action.txData);
+        } else if (action.actionType == ActionType.NO_ACTION) {
+            // do nothing
         }
-        s_lastResponse = response;
-        s_lastError = err;
-        emit Response(requestId, s_lastResponse, s_lastError);
+
+        proposal.executed = true;
+        proposal.winnerOption = winnerOption;
+        emit Response(requestId, response, err);
+
+        emit ActionExecuted(proposal.snapshotId, winnerOption, action.actionType);
     }
 
     // helpers
-    function convertBytesToUint(bytes calldata checkData) external view returns(uint timestamp){
+    function convertBytesToUint(bytes calldata checkData) external pure returns(uint timestamp){
         timestamp = abi.decode(checkData, (uint));
     }
 
-    function convertUintToBytes(uint timestamp) external view returns(bytes memory checkData){
+    function convertUintToBytes(uint timestamp) external pure returns(bytes memory checkData){
         checkData = abi.encodePacked(uint(timestamp));
+    }
+
+    function bytes32ToBytes(bytes32 data) public pure returns (bytes memory) {
+        bytes memory byteArray = new bytes(32);
+        for (uint i = 0; i < 32; i++) {
+            byteArray[i] = data[i];
+        }
+        return byteArray;
+    }
+
+    function bytes32ToString(bytes32 _bytes32) public pure returns (string memory) {
+        uint8 i = 0;
+        while(i < 32 && _bytes32[i] != 0) {
+            i++;
+        }
+        bytes memory bytesArray = new bytes(i);
+        for (i = 0; i < 32 && _bytes32[i] != 0; i++) {
+            bytesArray[i] = _bytes32[i];
+        }
+        return string(bytesArray);
     }
 }

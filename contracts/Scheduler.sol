@@ -35,7 +35,7 @@ contract Scheduler {
         i_registrar = registrar;
     }
 
-    function registerAndPredictID(RegistrationParams memory params) public {
+    function registerAndPredictID(RegistrationParams memory params) public returns (uint256) {
         // LINK must be approved for transfer - this can be done every time or once
         // with an infinite approval
         i_link.approve(address(i_registrar), params.amount);
@@ -46,6 +46,6 @@ contract Scheduler {
         } else {
             revert("auto-approve disabled");
         }
+        return upkeepID;
     }
-
 }
