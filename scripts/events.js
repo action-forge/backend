@@ -15,7 +15,7 @@ async function main() {
     actionForgeAddress = await actionForge.getAddress()
 
     const events = await actionForge.queryFilter(actionForge.filters.ActionForgeRegistered())
-    console.log(events[0].args)
+    console.log(events[1].args)
 }
 
 main()

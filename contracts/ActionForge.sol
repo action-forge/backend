@@ -145,6 +145,7 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
         proposals[actionForgeId] = proposalData;
         Proposal storage proposal = proposals[actionForgeId];
         proposal.actionForgeId = actionForgeId;
+        proposal.executed = false;
 
         for (uint i = 0; i < proposalData.actions.length; i++) {
             Action memory action = proposal.actions[i];
@@ -162,7 +163,7 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
                 checkData: bytes32ToBytes(proposal.actionForgeId),
                 triggerConfig: "",
                 offchainConfig: "",
-                amount: 1e17  // 0.1 LINK
+                amount: 1e18  // 1 LINK
             })
         );
         emit ActionForgeRegistered(proposal.snapshotId, proposal.actionForgeId, upkeepId, msg.sender, proposal);
@@ -245,23 +246,24 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
         if ((block.timestamp >= proposal.endTime) && (proposal.executed == false)) {
             proposal.executed = true;
             // TODO: grab proposal snapshot id from the struct we fetched earlier
-            sendRequestF(proposal.snapshotId);
+            sendRequestF(proposal.actionForgeId);
         }
     }
 
     // **Functions**
 
     function sendRequestF(
-        bytes32 snapshotId
+        bytes32 actionForgeId
     ) internal {
         FunctionsRequest.Request memory req;
         req.initializeRequest(FunctionsRequest.Location.Inline, FunctionsRequest.CodeLanguage.JavaScript, source);
         string[] memory args = new string[](1);
-        args[0] = bytes32ToString(snapshotId); // bytes32 to string
+        Proposal memory proposal = proposals[actionForgeId];
+        args[0] = bytes32ToString(proposal.snapshotId); // bytes32 to string
         req.setArgs(args);
 
         bytes32 s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donID);
-        requestMap[s_lastRequestId] = snapshotId;
+        requestMap[s_lastRequestId] = actionForgeId;
     }
 
     /**
@@ -292,7 +294,7 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
             // do nothing
         }
 
-        proposal.executed = true;
+        // proposal.executed = true;
         proposal.winnerOption = winnerOption;
         emit Response(requestId, response, err);
 
@@ -316,15 +318,34 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
         return byteArray;
     }
 
+    // function bytes32ToString(bytes32 _bytes32) public pure returns (string memory) {
+    //     uint8 i = 0;
+    //     while(i < 32 && _bytes32[i] != 0) {
+    //         i++;
+    //     }
+    //     bytes memory bytesArray = new bytes(i);
+    //     for (i = 0; i < 32 && _bytes32[i] != 0; i++) {
+    //         bytesArray[i] = _bytes32[i];
+    //     }
+    //     return string(bytesArray);
+    // }
+
     function bytes32ToString(bytes32 _bytes32) public pure returns (string memory) {
-        uint8 i = 0;
-        while(i < 32 && _bytes32[i] != 0) {
-            i++;
+        bytes memory bytesArray = new bytes(64);
+        for (uint256 i; i < 32; i++) {
+            bytesArray[i*2] = byteToHexChar(uint8(_bytes32[i]) / 16);
+            bytesArray[1+i*2] = byteToHexChar(uint8(_bytes32[i]) % 16);
         }
-        bytes memory bytesArray = new bytes(i);
-        for (i = 0; i < 32 && _bytes32[i] != 0; i++) {
-            bytesArray[i] = _bytes32[i];
-        }
-        return string(bytesArray);
+        string memory res = string(abi.encodePacked("0x", string(bytesArray)));
+        return res;
     }
+
+    function byteToHexChar(uint8 b) internal pure returns (bytes1) {
+        if (b < 10) {
+            return bytes1(b + 48); // 48 is ASCII code for '0'
+        } else {
+            return bytes1(b + 87); // 87 is ASCII code for 'a' - 10
+        }
+    }
+
 }

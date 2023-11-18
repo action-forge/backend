@@ -31,34 +31,35 @@ async function main() {
     // schedulerAddress = await scheduler.getAddress()
     // console.log("scheduler address = ", schedulerAddress)
 
-    const actionForge = await ethers.getContractAt("ActionForge", "0x11F69681A309F3753321097De2968211cdc7aF85")
+    const actionForge = await ethers.getContractAt("ActionForge", "0xa9425e5Fc93e74068824B688aE5449Eb6C9dBAF3")
     actionForgeAddress = await actionForge.getAddress()
 
     const scheduler = await ethers.getContractAt("Scheduler", "0xd62dbE3cFAD9ACEA783E2dC671bAe9ffA157Fa3E")
     schedulerAddress = await scheduler.getAddress()
 
-    await actionForge.setScheduler(schedulerAddress)
+    // await actionForge.setScheduler(schedulerAddress)
+    // return
 
     const ethAmount = BigInt(100000000000000)
     const actions = [
         {
+            actionType: 3,
+            txData: blankBytes32
+        },
+        {
+            actionType: 3,
+            txData: blankBytes32
+        },
+        {
             actionType: 0,
             txData: ethers.getBytes(ethers.AbiCoder.defaultAbiCoder().encode(["address", "address", "uint256"], [user1.address, "0x779877a7b0d9e8603169ddbd7836e478b4624789", ethAmount]))
         },
-        // {
-        //     actionType: 3,
-        //     txData: blankBytes32
-        // },
-        // {
-        //     actionType: 3,
-        //     txData: blankBytes32
-        // },
     ]
 
     const proposal = {
-        snapshotId: "0xcbe45e9c737c5d0cce6a60489473fa1f74d78fb7ea960b7462de99a1f420d6ef",
+        snapshotId: "0x0854ef7c064fd8a67679786b4a64ba9a2c85266ea508a617f9d8dc564c4f714b",
         actionForgeId: blankBytes32,
-        endTime: 1700334945,
+        endTime: 1700337600,
         actions: actions,
         executed: false,
         winnerOption: 0
@@ -114,5 +115,5 @@ main()
 
 
 
-// actionForge address =  0x11F69681A309F3753321097De2968211cdc7aF85
+// actionForge address =  0x97a69a259C9faB5102f7bc6b6dd34e3D766bDBFF
 // scheduler address =  0xd62dbE3cFAD9ACEA783E2dC671bAe9ffA157Fa3E
