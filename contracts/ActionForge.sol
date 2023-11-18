@@ -11,14 +11,32 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IWrappedTokenGatewayV3.sol";
 import "./interfaces/ISDAI.sol";
 
-contract ActionForge is Ownable {
+import "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
+import {FunctionsClient} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
+import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/dev/v1_0_0/libraries/FunctionsRequest.sol";
+
+contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable {
+    using FunctionsRequest for FunctionsRequest.Request;
+    
+    // functions
+    address public upkeepContract; //
+    string public source; // js code to be executed by Functions
+    uint64 public subscriptionId;
+    uint32 public gasLimit; // 300000
+    bytes32 public donID;  // sepolia: 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000;
+    bytes32 public s_lastRequestId;
+    bytes public s_lastResponse;
+    bytes public s_lastError;
+
+
     enum ActionType {
         ERC20_TRANSFER,
         BORROW_GHO, // aave
-        BUY_SDAI // spark
+        BUY_SDAI, // spark
+        NO_ACTION // dont do anything
     }
 
-    mapping(address => Proposal[]) public proposalMap; // mapping of user to their proposals
+    mapping(address => bytes32[]) public proposalMap; // mapping of each user to their proposal/actions combos
     mapping(bytes32 => Proposal) public proposals; // mapping of proposalId to proposal
 
     // aave
@@ -31,7 +49,9 @@ contract ActionForge is Ownable {
         uint256 nonce;  // nonce for this contract specifically to prevent replay txs
         uint endTime;  // frontend will populate this from snapshot APIs
         Action[] actions;
+        bool executed;
     }
+
     struct Action {
         ActionType actionType;
         // bytes32 snapshotId;
@@ -70,8 +90,26 @@ contract ActionForge is Ownable {
     event ETHReceived(address user, uint256 amount);
     // receive() external payable {}
 
-    constructor() Ownable(msg.sender) {
+    error NotAllowedCaller(
+        address caller,
+        address owner,
+        address automationRegistry
+    );
+    error UnexpectedRequestID(bytes32 requestId);
 
+    event Response(bytes32 indexed requestId, bytes response, bytes err);
+
+    constructor(
+        address router,
+        uint64 _subscriptionId,
+        string memory _source,
+        uint32 _gasLimit,
+        bytes32 _donID
+    ) FunctionsClient(router) Ownable(msg.sender) {
+        subscriptionId = _subscriptionId;
+        source = _source;
+        gasLimit = _gasLimit;
+        donID = _donID;
     }
 
     function setAaveParams(address _aaveWrappedTokenGatewayV3, address _aavePoolProxy, address _ghoToken, address _aaveOracle, address _aaveEthAsset) external onlyOwner {
@@ -246,5 +284,75 @@ contract ActionForge is Ownable {
         if (v < 27) {
             v += 27;
         }
+    }
+
+    // Chainlink
+    // **Automation**
+    function checkUpkeep(
+        bytes calldata checkData
+    )
+        external
+        view
+        override
+        returns (bool upkeepNeeded, bytes memory performData )
+    {
+        // TODO: grab the proposalId from checkData as well, so we can check for the isExecuted bool for this specific proposalId. Swap that  with `isExecuted` on next line
+        uint targetTimestamp = abi.decode(checkData, (uint));
+        upkeepNeeded = (block.timestamp >= targetTimestamp) && (isExecuted == false);
+        performData = checkData;
+        
+    }
+
+    function performUpkeep(bytes calldata performData) external override {
+        // TODO: same as above
+        uint targetTimestamp = abi.decode(performData, (uint));
+        if ((block.timestamp >= targetTimestamp) && (isExecuted == false)) {
+            isExecuted = true;
+            // TODO: grab proposal snapshot id from the struct we fetched earlier
+            sendRequestF("0xa57e0d81ef4fc66ade39318040a6eb960ddb4cc50c73a4589bd29d77579b64c2");
+        }
+    }
+
+    // **Functions**
+
+    function sendRequestF(
+        string memory proposalId
+    ) internal {
+        FunctionsRequest.Request memory req;
+        req.initializeRequest(FunctionsRequest.Location.Inline, FunctionsRequest.CodeLanguage.JavaScript, source);
+        string[] memory args = new string[](1);
+        args[0] = proposalId;
+        req.setArgs(args);
+
+        s_lastRequestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donID);
+    }
+
+    /**
+     * @notice Store latest result/error
+     * @param requestId The request ID, returned by sendRequest()
+     * @param response Aggregated response from the user code
+     * @param err Aggregated error from the user code or from the execution pipeline
+     * Either response or error parameter will be set, but never both
+     */
+    function fulfillRequest(
+        bytes32 requestId,
+        bytes memory response,
+        bytes memory err
+    ) internal override {
+        if (s_lastRequestId != requestId) {
+            revert UnexpectedRequestID(requestId);
+        }
+        s_lastResponse = response;
+        s_lastError = err;
+        emit Response(requestId, s_lastResponse, s_lastError);
+    }
+
+    // helpers
+    function convertBytesToUint(bytes calldata checkData) external view returns(uint timestamp){
+        timestamp = abi.decode(checkData, (uint));
+    }
+
+    function convertUintToBytes(uint timestamp) external view returns(bytes memory checkData){
+        checkData = abi.encodePacked(uint(timestamp));
     }
 }
