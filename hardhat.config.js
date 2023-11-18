@@ -7,6 +7,10 @@ const pk = process.env.PRIVATE_KEY || ''
 module.exports = {
   solidity: "0.8.20",
   networks: {
+    local: {
+      url: 'http://127.0.0.1:8545',
+      chainId: 321123,
+    },
     goerli: {
       url: "https://goerli.infura.io/v3/06800f8293644a29b29acbc1148042f1",
       accounts: [

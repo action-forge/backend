@@ -197,13 +197,15 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
     }
 
     // ERC20 transfer
-    function transferERC20(address destination, address tokenAddress, uint256 amount) external {
+    function transferERC20(bytes calldata dataBytes) external {
+        (address destination, address tokenAddress, uint256 amount) = abi.decode(dataBytes, (address, address, uint256));
         require(IERC20(tokenAddress).allowance(msg.sender, address(this)) > amount, "Amount not aproved");
         IERC20(tokenAddress).transferFrom(msg.sender, destination, amount);
     }
 
     // AAVE
-    function borrowGHO(address destination, uint256 ethAmount) external {
+    function borrowGHO(bytes calldata dataBytes) external {
+        (address destination, uint256 ethAmount) = abi.decode(dataBytes, (address, uint256));
         require(ethDeposited[destination] >= ethAmount, "Insufficient ETH deposited");
 
         IWrappedTokenGatewayV3(aaveWrappedTokenGatewayV3).depositETH{value: ethAmount}(aavePoolProxy, address(this), 0);
@@ -220,7 +222,8 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
     }
 
     // spark
-    function buySDAI(address destination, uint256 ethAmount) external {
+    function buySDAI(bytes calldata dataBytes) external {
+        (address destination, uint256 ethAmount) = abi.decode(dataBytes, (address, uint256));
         require(ethDeposited[destination] >= ethAmount, "Insufficient ETH deposited");
 
         uint256 daiAmount = swapEthForToken(ethAmount, daiContract, 0, block.timestamp + 1 minutes);
