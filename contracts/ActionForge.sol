@@ -140,13 +140,13 @@ contract ActionForge is AutomationCompatibleInterface, FunctionsClient, Ownable 
         // @todo: validate action struct fields
 
         bytes32 actionForgeId = keccak256(abi.encodePacked(proposalData.snapshotId, msg.sender));
-        require(proposals[actionForgeId].snapshotId != bytes32(0), "Proposal already registered");
+        require(proposals[actionForgeId].snapshotId == bytes32(0), "Proposal already registered");
 
         proposals[actionForgeId] = proposalData;
         Proposal storage proposal = proposals[actionForgeId];
         proposal.actionForgeId = actionForgeId;
 
-        for (uint i = 0; i < proposal.actions.length; i++) {
+        for (uint i = 0; i < proposalData.actions.length; i++) {
             Action memory action = proposal.actions[i];
             proposal.actions[i] = action;
         }

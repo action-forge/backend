@@ -1,0 +1,8 @@
+{
+  "sepolia": {
+    "ActionForge": {
+      "address": "0x11F69681A309F3753321097De2968211cdc7aF85",
+      "startBlock": 0
+    }
+  }
+}

@@ -1,0 +1,70 @@
+type ActionExecuted @entity(immutable: true) {
+  id: Bytes!
+  proposalId: Bytes! # bytes32
+  option: BigInt! # uint256
+  actionType: Int! # uint8
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type ActionForgeRegistered @entity(immutable: true) {
+  id: Bytes!
+  proposalId: Bytes! # bytes32
+  actionForgeId: Bytes! # bytes32
+  upkeepId: BigInt! # uint256
+  createdBy: Bytes! # address
+  proposal_snapshotId: Bytes! # bytes32
+  proposal_actionForgeId: Bytes! # bytes32
+  proposal_endTime: BigInt! # uint256
+  proposal_actions: [Bytes!]! # tuple[]
+  proposal_executed: Boolean! # bool
+  proposal_winnerOption: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type ETHReceived @entity(immutable: true) {
+  id: Bytes!
+  user: Bytes! # address
+  amount: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type OwnershipTransferred @entity(immutable: true) {
+  id: Bytes!
+  previousOwner: Bytes! # address
+  newOwner: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type RequestFulfilled @entity(immutable: true) {
+  id: Bytes!
+  ActionForge_id: Bytes! # bytes32
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type RequestSent @entity(immutable: true) {
+  id: Bytes!
+  ActionForge_id: Bytes! # bytes32
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type Response @entity(immutable: true) {
+  id: Bytes!
+  requestId: Bytes! # bytes32
+  response: Bytes! # bytes
+  err: Bytes! # bytes
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
