@@ -12,33 +12,33 @@ let tx
 async function main() {
     const [admin, user1, user2, user3] = await ethers.getSigners()
 
-    const actionForgeContract = await ethers.getContractFactory("ActionForge")
-    const source =  fs.readFileSync('./chainlink_function.js', 'utf8')
-    const router = "0xb83E47C2bC239B3bf370bc41e1459A34b41238D0"
-    const subscriptionId = 1606
-    const gasLimit = 300000
-    const donID = "0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000"
+    // const actionForgeContract = await ethers.getContractFactory("ActionForge")
+    // const source =  fs.readFileSync('./chainlink_function.js', 'utf8')
+    // const router = "0xb83E47C2bC239B3bf370bc41e1459A34b41238D0"
+    // const subscriptionId = 1606
+    // const gasLimit = 300000
+    // const donID = "0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000"
 
-    const actionForge = await actionForgeContract.deploy(router, subscriptionId, source, gasLimit, donID)
-    await actionForge.waitForDeployment()
-    actionForgeAddress = await actionForge.getAddress()
-    console.log("actionForge address = ", actionForgeAddress)
-
-    const i_link = "0x779877A7B0D9E8603169DdbD7836e478b4624789"
-    const i_registrar = "0xb0E49c5D0d05cbc241d68c05BC5BA1d1B7B72976"
-    const schedulerContract = await ethers.getContractFactory("Scheduler")
-    const scheduler = await schedulerContract.deploy(i_link, i_registrar)
-    schedulerAddress = await scheduler.getAddress()
-    console.log("scheduler address = ", schedulerAddress)
-
-    // const actionForge = await ethers.getContractAt("ActionForge", "0x64984643bB8df4dC31A936391BB94dD9a789Cc1a")
+    // const actionForge = await actionForgeContract.deploy(router, subscriptionId, source, gasLimit, donID)
+    // await actionForge.waitForDeployment()
     // actionForgeAddress = await actionForge.getAddress()
+    // console.log("actionForge address = ", actionForgeAddress)
 
-    // const scheduler = await ethers.getContractAt("Scheduler", "0xd62dbE3cFAD9ACEA783E2dC671bAe9ffA157Fa3E")
+    // const i_link = "0x779877A7B0D9E8603169DdbD7836e478b4624789"
+    // const i_registrar = "0xb0E49c5D0d05cbc241d68c05BC5BA1d1B7B72976"
+    // const schedulerContract = await ethers.getContractFactory("Scheduler")
+    // const scheduler = await schedulerContract.deploy(i_link, i_registrar)
     // schedulerAddress = await scheduler.getAddress()
+    // console.log("scheduler address = ", schedulerAddress)
 
-    await actionForge.setScheduler(schedulerAddress)
-    return
+    const actionForge = await ethers.getContractAt("ActionForge", "0x64984643bB8df4dC31A936391BB94dD9a789Cc1a")
+    actionForgeAddress = await actionForge.getAddress()
+
+    const scheduler = await ethers.getContractAt("Scheduler", "0xd62dbE3cFAD9ACEA783E2dC671bAe9ffA157Fa3E")
+    schedulerAddress = await scheduler.getAddress()
+
+    // await actionForge.setScheduler(schedulerAddress)
+    // return
 
     const ethAmount = BigInt(100000000000000)
     const actions = [
@@ -51,13 +51,13 @@ async function main() {
             txData: blankBytes32
         },
         {
-            actionType: 0,
+            actionType: 1,
             txData: ethers.getBytes(ethers.AbiCoder.defaultAbiCoder().encode(["address", "address", "uint256"], [user1.address, "0x779877a7b0d9e8603169ddbd7836e478b4624789", ethAmount]))
         },
     ]
 
     const proposal = {
-        snapshotId: "0xa455322132fd2e7bc54d8f6fb72287830d4ff717fa0192608b8a3f43c39622e6",
+        snapshotId: "0x0854ef7c064fd8a67679786b4a64ba9a2c85266ea508a617f9d8dc564c4f714b",
         actionForgeId: blankBytes32,
         endTime: 1700347800,
         actions: actions,

@@ -6,7 +6,7 @@ dataSources:
     name: ActionForge
     network: sepolia
     source:
-      address: "0x11F69681A309F3753321097De2968211cdc7aF85"
+      address: "0x64984643bB8df4dC31A936391BB94dD9a789Cc1a"
       abi: ActionForge
       startBlock: 4720080
     mapping:
