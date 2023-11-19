@@ -7,7 +7,17 @@ const pk = process.env.PRIVATE_KEY || ''
 module.exports = {
   solidity: "0.8.20",
   etherscan: {
-    apiKey: '6BXXCU4XVIRVB61K3I5P62SIXRGME8QP8V'
+    apiKey: '6BXXCU4XVIRVB61K3I5P62SIXRGME8QP8V',
+    customChains: [
+      {
+        network: 'scrollSepolia',
+        chainId: 534351,
+        urls: {
+          apiURL: 'https://sepolia-blockscout.scroll.io/api',
+          browserURL: 'https://sepolia-blockscout.scroll.io/',
+        },
+      },
+    ],
   },
   networks: {
     local: {
